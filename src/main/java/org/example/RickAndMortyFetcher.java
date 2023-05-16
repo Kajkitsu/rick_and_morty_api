@@ -1,16 +1,17 @@
 package org.example;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 public class RickAndMortyFetcher {
 
-    ObjectMapper objectMapper
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
     public static void main(String[] args) {
         // Tworzenie instancji HttpClient
         HttpClient httpClient = HttpClient.newHttpClient();
@@ -37,14 +38,11 @@ public class RickAndMortyFetcher {
             // Pobranie ciała odpowiedzi
             String responseBody = response.body();
 
-            // Wyświetlanie statusu kodu
-            System.out.println("Status code: " + statusCode);
+            // Mapowanie resposne body do obiektu klasy CharacterResponseDTO
+            CharacterResponseDTO responseDTO = objectMapper.readValue(responseBody, CharacterResponseDTO.class);
 
-            // Wyświetlanie nagłówków odpowiedzi
-            System.out.println("Response headers: " + headers);
-
-            // Wyświetlanie ciała odpowiedzi
-            System.out.println("Response body: " + responseBody);
+            // Wyświetlanie przekonwertowanej odpowiedzi
+            System.out.println("Response body: " + responseDTO.toString());
         } catch (Exception e) {
             e.printStackTrace();
         }
