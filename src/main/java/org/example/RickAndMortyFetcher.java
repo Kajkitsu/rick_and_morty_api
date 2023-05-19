@@ -1,13 +1,16 @@
 package org.example;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 public class RickAndMortyFetcher {
     private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
@@ -15,14 +18,23 @@ public class RickAndMortyFetcher {
 
     public static void main(String[] args) {
         RickAndMortyFetcher fetcher = new RickAndMortyFetcher();
-        fetcher.fetchCharacterByName("Summer")
+        fetcher.fetchCharacterListByName("Pickle")
                 .stream()
-                .map(CharacterDTO::name)
+                .map(CharacterDTO::episode)
+                .flatMap(Collection::stream)
+                .map(fetcher::fetchEpisodeByUrl)
+                .flatMap(Optional::stream)
+                .map(EpisodeDTO::characters)
+                .flatMap(Collection::stream)
                 .distinct()
+                .map(fetcher::fetchCharacterByUrl)
+                .flatMap(Optional::stream)
+                .distinct()
+                .map(it -> it.id() + ": " + it.name())
                 .forEach(System.out::println);
     }
 
-    public List<CharacterDTO> fetchCharacterByName(String name) {
+    public List<CharacterDTO> fetchCharacterListByName(String name) {
         String apiUrl = "https://rickandmortyapi.com/api/character/?name=" + name;
         String responseBody = fetch(apiUrl);
         try {
@@ -31,6 +43,34 @@ public class RickAndMortyFetcher {
         } catch (IOException e) {
             e.printStackTrace();
             return Collections.emptyList();
+        }
+    }
+
+    public Optional<EpisodeDTO> fetchEpisodeByUrl(String url) {
+        if (!url.startsWith("https://rickandmortyapi.com/api/episode/")) {
+            throw new IllegalArgumentException("URL in wrong format");
+        }
+        String responseBody = fetch(url);
+        try {
+            EpisodeDTO responseDTO = OBJECT_MAPPER.readValue(responseBody, EpisodeDTO.class);
+            return Optional.of(responseDTO);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return Optional.empty();
+        }
+    }
+
+    public Optional<CharacterDTO> fetchCharacterByUrl(String url) {
+        if (!url.startsWith("https://rickandmortyapi.com/api/character/")) {
+            throw new IllegalArgumentException("URL in wrong format");
+        }
+        String responseBody = fetch(url);
+        try {
+            CharacterDTO responseDTO = OBJECT_MAPPER.readValue(responseBody, CharacterDTO.class);
+            return Optional.of(responseDTO);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return Optional.empty();
         }
     }
 
