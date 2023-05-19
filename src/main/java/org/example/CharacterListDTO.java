@@ -2,7 +2,7 @@ package org.example;
 
 import java.util.List;
 
-public record CharacterResponseDTO(
+public record CharacterListDTO(
         InfoDTO info,
         List<CharacterDTO> results) {
 }

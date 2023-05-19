@@ -17,9 +17,10 @@ public class RickAndMortyFetcher {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     public static void main(String[] args) {
-        RickAndMortyFetcher fetcher = new RickAndMortyFetcher();
+        var fetcher = new RickAndMortyFetcher();
         fetcher.fetchCharacterListByName("Pickle")
                 .stream()
+                .peek(it -> System.out.println(it.id() + ": " + it.name() + ", met:"))
                 .map(CharacterDTO::episode)
                 .flatMap(Collection::stream)
                 .map(fetcher::fetchEpisodeByUrl)
@@ -30,61 +31,42 @@ public class RickAndMortyFetcher {
                 .map(fetcher::fetchCharacterByUrl)
                 .flatMap(Optional::stream)
                 .distinct()
-                .map(it -> it.id() + ": " + it.name())
+                .map(it -> "\t" + it.id() + ": " + it.name())
                 .forEach(System.out::println);
     }
 
     public List<CharacterDTO> fetchCharacterListByName(String name) {
-        String apiUrl = "https://rickandmortyapi.com/api/character/?name=" + name;
-        String responseBody = fetch(apiUrl);
-        try {
-            CharacterResponseDTO responseDTO = OBJECT_MAPPER.readValue(responseBody, CharacterResponseDTO.class);
-            return responseDTO.results();
-        } catch (IOException e) {
-            e.printStackTrace();
-            return Collections.emptyList();
-        }
+        var apiUrl = "https://rickandmortyapi.com/api/character/?name=" + name;
+        return fetch(CharacterListDTO.class, apiUrl)
+                .map(CharacterListDTO::results)
+                .orElse(Collections.emptyList());
     }
 
     public Optional<EpisodeDTO> fetchEpisodeByUrl(String url) {
         if (!url.startsWith("https://rickandmortyapi.com/api/episode/")) {
             throw new IllegalArgumentException("URL in wrong format");
         }
-        String responseBody = fetch(url);
-        try {
-            EpisodeDTO responseDTO = OBJECT_MAPPER.readValue(responseBody, EpisodeDTO.class);
-            return Optional.of(responseDTO);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return Optional.empty();
-        }
+        return fetch(EpisodeDTO.class, url);
     }
 
     public Optional<CharacterDTO> fetchCharacterByUrl(String url) {
         if (!url.startsWith("https://rickandmortyapi.com/api/character/")) {
             throw new IllegalArgumentException("URL in wrong format");
         }
-        String responseBody = fetch(url);
-        try {
-            CharacterDTO responseDTO = OBJECT_MAPPER.readValue(responseBody, CharacterDTO.class);
-            return Optional.of(responseDTO);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return Optional.empty();
-        }
+        return fetch(CharacterDTO.class, url);
     }
 
-    private String fetch(String path) {
-        HttpRequest request = HttpRequest.newBuilder()
+    private <T> Optional<T> fetch(Class<T> responseClass, String path) {
+        var request = HttpRequest.newBuilder()
                 .uri(URI.create(path))
                 .GET()
                 .build();
         try {
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-            return response.body();
+            var response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            return Optional.of(OBJECT_MAPPER.readValue(response.body(), responseClass));
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
-            return null;
+            return Optional.empty();
         }
     }
 
